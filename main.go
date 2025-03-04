@@ -19,13 +19,13 @@ var (
 )
 
 func main() {
-	fmt.Print("请输入 Gitea 实例地址（例如：http://10.0.0.79:3000/api/v1）: ")
+	fmt.Print("请输入 Gitea 实例地址（例如：http://10.0.0.10/api/v1）: ")
 	fmt.Scanln(&GITEA_BASE_URL)
 	fmt.Print("请输入您的 API Token: ")
 	fmt.Scanln(&API_TOKEN)
 
 	if GITEA_BASE_URL == "" {
-		GITEA_BASE_URL = "http://10.0.0.79:3000/api/v1"
+		GITEA_BASE_URL = "http://10.0.0.10/api/v1"
 	}
 	if API_TOKEN == "" {
 		API_TOKEN = "c142a2fa4b1bdd1f5fac76d9336c982d1337dcf5"
