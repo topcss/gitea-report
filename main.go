@@ -141,7 +141,7 @@ func main() {
 // 通用表头设置函数
 func setHeaders(f *excelize.File, sheet string, headers []string) {
 	for i, h := range headers {
-		cell := fmt.Sprintf("%c1", 'A'+i)
+		cell := fmt.Sprintf("%c1", 'A'+i) // 'A' 的ASCII码是65，当i=1时：'A' + 1 = 66 → 对应字符'B' 生成字符串"B1"
 		f.SetCellValue(sheet, cell, h)
 	}
 }
