@@ -46,14 +46,16 @@ func main() {
 	f.DeleteSheet("Sheet1")
 
 	// 设置表头
-	setRepoHeaders(f, repoSheet)
-	setBranchHeaders(f, branchSheet)
-	setCollabHeaders(f, collabSheet)
+	setHeaders(f, repoSheet, []string{"仓库全名", "拥有者", "创建时间", "最后更新时间", "仓库描述"})
+	setHeaders(f, branchSheet, []string{"所属仓库", "分支名称", "最新提交", "受保护", "合并白名单用户"})
+	setHeaders(f, collabSheet, []string{"所属仓库", "协作者"})
 
 	// 收集数据并写入
 	repos := getAllRepos()
+	// 设置行号
 	repoRow, branchRow, collabRow := 2, 2, 2
 
+	// 遍历仓库数据
 	for _, repo := range repos {
 		fullName := repo["full_name"].(string)
 		owner := repo["owner"].(map[string]interface{})["login"].(string)
@@ -136,30 +138,15 @@ func main() {
 	fmt.Scanln()
 }
 
-func setRepoHeaders(f *excelize.File, sheet string) {
-	headers := []string{"仓库全名", "拥有者", "创建时间", "最后更新时间", "仓库描述"} // 新增列
+// 通用表头设置函数
+func setHeaders(f *excelize.File, sheet string, headers []string) {
 	for i, h := range headers {
 		cell := fmt.Sprintf("%c1", 'A'+i)
 		f.SetCellValue(sheet, cell, h)
 	}
 }
 
-func setBranchHeaders(f *excelize.File, sheet string) {
-	headers := []string{"所属仓库", "分支名称", "最新提交", "受保护", "合并白名单用户"}
-	for i, h := range headers {
-		cell := fmt.Sprintf("%c1", 'A'+i)
-		f.SetCellValue(sheet, cell, h)
-	}
-}
-
-func setCollabHeaders(f *excelize.File, sheet string) {
-	headers := []string{"所属仓库", "协作者"}
-	for i, h := range headers {
-		cell := fmt.Sprintf("%c1", 'A'+i)
-		f.SetCellValue(sheet, cell, h)
-	}
-}
-
+// 通用自动调整列宽函数
 func setAutoWidth(f *excelize.File, sheet string, cols []string) {
 	for _, col := range cols {
 		width, _ := f.GetColWidth(sheet, col)
@@ -169,6 +156,7 @@ func setAutoWidth(f *excelize.File, sheet string, cols []string) {
 	}
 }
 
+// 获取所有仓库信息
 func getAllRepos() []map[string]interface{} {
 	var allRepos []map[string]interface{}
 	page := 1
@@ -210,6 +198,7 @@ func getAllRepos() []map[string]interface{} {
 	return allRepos
 }
 
+// 获取仓库分支信息
 func getBranches(fullName string) []map[string]interface{} {
 	url := fmt.Sprintf("%s/repos/%s/branches", GITEA_BASE_URL, fullName)
 	resp, err := makeRequest("GET", url, nil)
@@ -224,6 +213,7 @@ func getBranches(fullName string) []map[string]interface{} {
 	return branches
 }
 
+// 获取仓库协作者信息
 func getCollaborators(fullName string) []map[string]interface{} {
 	url := fmt.Sprintf("%s/repos/%s/collaborators", GITEA_BASE_URL, fullName)
 	resp, err := makeRequest("GET", url, nil)
@@ -238,6 +228,7 @@ func getCollaborators(fullName string) []map[string]interface{} {
 	return collaborators
 }
 
+// 获取分支保护信息
 func getBranchProtections(fullName string) []map[string]interface{} {
 	url := fmt.Sprintf("%s/repos/%s/branch_protections", GITEA_BASE_URL, fullName)
 	resp, err := makeRequest("GET", url, nil)
@@ -255,6 +246,7 @@ func getBranchProtections(fullName string) []map[string]interface{} {
 	return protections
 }
 
+// 格式化时间
 func formatTime(t interface{}) string {
 	timeStr, ok := t.(string)
 	if !ok {
@@ -269,6 +261,7 @@ func formatTime(t interface{}) string {
 	return parsedTime.Local().Format("2006-01-02 15:04:05")
 }
 
+// 发起HTTP请求
 func makeRequest(method, url string, body []byte) (*http.Response, error) {
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, bytes.NewBuffer(body))
