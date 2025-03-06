@@ -3,7 +3,7 @@
 # 清理
 rm -rf release
 
-VERSION="1.0.0"
+VERSION="1.0.1"
 APPNAME="gitea-report"
 
 # 编译 windows

@@ -59,12 +59,17 @@ func main() {
 		owner := repo["owner"].(map[string]interface{})["login"].(string)
 		created := formatTime(repo["created_at"])
 		updated := formatTime(repo["updated_at"])
+		description := ""
+		if desc, ok := repo["description"].(string); ok {
+			description = desc
+		}
 
 		// 写入仓库信息
 		f.SetCellValue(repoSheet, fmt.Sprintf("A%d", repoRow), fullName)
 		f.SetCellValue(repoSheet, fmt.Sprintf("B%d", repoRow), owner)
 		f.SetCellValue(repoSheet, fmt.Sprintf("C%d", repoRow), created)
 		f.SetCellValue(repoSheet, fmt.Sprintf("D%d", repoRow), updated)
+		f.SetCellValue(repoSheet, fmt.Sprintf("E%d", repoRow), description)
 		repoRow++
 
 		// 处理分支信息
@@ -111,7 +116,7 @@ func main() {
 	}
 
 	// 自动调整列宽
-	setAutoWidth(f, repoSheet, []string{"A", "B", "C", "D"})
+	setAutoWidth(f, repoSheet, []string{"A", "B", "C", "D", "E"})
 	setAutoWidth(f, branchSheet, []string{"A", "B", "C", "D", "E"})
 	setAutoWidth(f, collabSheet, []string{"A", "B"})
 
@@ -132,7 +137,7 @@ func main() {
 }
 
 func setRepoHeaders(f *excelize.File, sheet string) {
-	headers := []string{"仓库全名", "拥有者", "创建时间", "最后更新时间"}
+	headers := []string{"仓库全名", "拥有者", "创建时间", "最后更新时间", "仓库描述"} // 新增列
 	for i, h := range headers {
 		cell := fmt.Sprintf("%c1", 'A'+i)
 		f.SetCellValue(sheet, cell, h)
