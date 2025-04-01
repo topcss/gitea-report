@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	// "io"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -39,21 +40,24 @@ func main() {
 	repoSheet := "仓库信息"
 	branchSheet := "分支信息"
 	collabSheet := "协作者信息"
+	statsSheet := "代码统计"
 
 	f.NewSheet(repoSheet)
 	f.NewSheet(branchSheet)
 	f.NewSheet(collabSheet)
+	f.NewSheet(statsSheet)
 	f.DeleteSheet("Sheet1")
 
 	// 设置表头
 	setHeaders(f, repoSheet, []string{"仓库全名", "拥有者", "创建时间", "最后更新时间", "仓库描述"})
 	setHeaders(f, branchSheet, []string{"所属仓库", "分支名称", "最新提交", "受保护", "合并白名单用户"})
 	setHeaders(f, collabSheet, []string{"所属仓库", "协作者"})
+	setHeaders(f, statsSheet, []string{"仓库全名", "作者", "提交次数", "添加行数", "删除行数", "净增行数"})
 
 	// 收集数据并写入
 	repos := getAllRepos()
 	// 设置行号
-	repoRow, branchRow, collabRow := 2, 2, 2
+	repoRow, branchRow, collabRow, statsRow := 2, 2, 2, 2
 
 	// 遍历仓库数据
 	for _, repo := range repos {
@@ -115,12 +119,26 @@ func main() {
 			f.SetCellValue(collabSheet, fmt.Sprintf("B%d", collabRow), collab["login"].(string))
 			collabRow++
 		}
+
+		// 处理代码统计信息
+		stats := getRepoCodeStats(fullName)
+		for _, stat := range stats {
+			f.SetCellValue(statsSheet, fmt.Sprintf("A%d", statsRow), fullName)
+			// f.SetCellValue(statsSheet, fmt.Sprintf("B%d", statsRow), author)
+			f.SetCellValue(statsSheet, fmt.Sprintf("C%d", statsRow), stat.Commits)
+			f.SetCellValue(statsSheet, fmt.Sprintf("D%d", statsRow), stat.Additions)
+			f.SetCellValue(statsSheet, fmt.Sprintf("E%d", statsRow), stat.Deletions)
+			f.SetCellValue(statsSheet, fmt.Sprintf("F%d", statsRow), stat.Additions - stat.Deletions)
+			statsRow++
+		}
+
 	}
 
 	// 自动调整列宽
 	setAutoWidth(f, repoSheet, []string{"A", "B", "C", "D", "E"})
 	setAutoWidth(f, branchSheet, []string{"A", "B", "C", "D", "E"})
 	setAutoWidth(f, collabSheet, []string{"A", "B"})
+	setAutoWidth(f, statsSheet, []string{"A", "B", "C", "D", "E", "F"})
 
 	// 保存文件
 	fileName := fmt.Sprintf("gitea-report-%s.xlsx", time.Now().Format("20060102-150405"))
@@ -136,6 +154,13 @@ func main() {
 	// 避免闪退
 	fmt.Print("按回车键退出...")
 	fmt.Scanln()
+}
+
+// 定义代码统计结构体
+type CodeStats struct {
+	Commits   float64
+	Additions float64
+	Deletions float64
 }
 
 // 通用表头设置函数
@@ -154,6 +179,67 @@ func setAutoWidth(f *excelize.File, sheet string, cols []string) {
 			_ = f.SetColWidth(sheet, col, col, 20)
 		}
 	}
+}
+
+// 获取仓库代码统计信息
+func getRepoCodeStats(fullName string) map[string]CodeStats {
+	stats := make(map[string]CodeStats)
+	page := 1
+	limit := 100 // 每页100条提交记录
+
+	for {
+		// 获取提交列表
+		url := fmt.Sprintf("%s/repos/%s/commits?page=%d&limit=%d", GITEA_BASE_URL, fullName, page, limit)
+		resp, err := makeRequest("GET", url, nil)
+		if err != nil {
+			fmt.Printf("获取提交列表失败: %v\n", err)
+			break
+		}
+		defer resp.Body.Close()
+
+		fmt.Printf("请求URL: %s\n", url)
+
+		var commits []map[string]interface{}
+		if err := json.NewDecoder(resp.Body).Decode(&commits); err != nil {
+			fmt.Printf("解析提交列表失败: %v\n", err)
+			break
+		}
+
+		if len(commits) == 0 {
+			break
+		}
+
+		totalStats := map[string]interface{}{
+			"additions": float64(0),
+			"deletions": float64(0),
+		}
+
+		// 遍历所有提交，累加统计信息
+		for _, commit := range commits {
+			if stats, ok := commit["stats"].(map[string]interface{}); ok {
+				if additions, ok := stats["additions"].(float64); ok {
+					totalStats["additions"] = totalStats["additions"].(float64) + additions
+				}
+				if deletions, ok := stats["deletions"].(float64); ok {
+					totalStats["deletions"] = totalStats["deletions"].(float64) + deletions
+				}
+			}
+		}
+
+		stats[fullName] = CodeStats{
+			Commits:   float64(len(commits)),
+			Additions: totalStats["additions"].(float64),
+			Deletions: totalStats["deletions"].(float64),
+		}
+
+		if len(commits) < limit {
+			break
+		}
+
+		page++
+	}
+
+	return stats
 }
 
 // 获取所有仓库信息
